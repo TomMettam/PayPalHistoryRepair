@@ -1,7 +1,8 @@
 /*
 
-    Craypal.com
+    PayPal History Repair Tool
     ©2016 CasperTech Ltd (UK)
+    https://github.com/TomMettam/PayPalHistoryRepair
 
     This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
 

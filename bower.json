@@ -1,12 +1,12 @@
 {
-  "name": "craypal",
+  "name": "paypal-history-repair",
   "authors": [
     "Tom Mettam <tom@caspertech.co.uk>"
   ],
   "description": "",
   "main": "",
-  "license": "MIT",
-  "homepage": "",
+  "license": "Creative Commons Attribution-ShareAlike 4.0 International License",
+  "homepage": "https://tommettam.github.io/PayPalHistoryRepair/",
   "private": true,
   "ignore": [
     "**/.*",
