@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en" ng-app="craypal">
+<head>
+    <meta charset="utf-8">
+    <title>PayPal History Repair Tool</title>
+    <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <script src="bower_components/angular/angular.js"></script>
+    <script src="bower_components/papaparse/papaparse.js"></script>
+    <script src="bower_components/angular-papaparse/dist/js/angular-PapaParse.js"></script>
+    <script src="bower_components/moment/moment.js"></script>
+    <script src="bower_components/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
+    <script src="bower_components/angular-moment/angular-moment.js"></script>
+    <script src="bower_components/angular-sanitize/angular-sanitize.min.js"></script>
+    <script src="bower_components/ng-csv/build/ng-csv.min.js"></script>
+    <script src="app/tzData.js"></script>
+    <script src="app/app.js"></script>
+    <script src="app/directives/ngFileSelect.js"></script>
+</head>
+<body ng-controller="main">
+<div class="container">
+    <div class="page-header">
+        <h3>PayPal History Repair Tool</h3>
+    </div>
+    <div ng-if="!gotFile">
+        <div class="well">
+            Choose a PayPal CSV file to fix.
+        </div>
+        <p style="margin-bottom:20px;"><label class="btn btn-default btn-lg btn-file">
+            Upload PayPal History CSV <input type="file" class="form-control" ng-file-select="text" file-progress="fileReadProgress($total, $loaded)" file-loaded="fileReadComplete($data)" file-start="fileStart()" file-error="fileReadError($error)"  style="display: none;">
+        </label></p>
+        <div class="panel panel-default panel-info">
+            <div class="panel-heading">
+                <span class="panel-title">What is this?</span>
+            </div>
+            <div class="panel-body">
+                <p>When you download your transaction history from PayPal, the CSV you get is broken and completely inappropriate for use in accounting software. This site will process your CSV and give you a repaired chronological account history in each currency.</p>
+                <p>Specifically, the following issues are repaired:</p>
+                <ul>
+                    <li>Timezone abbreviations are not unique, and therefore cannot be properly parsed. For example, Europe/London should be specified rather than BST.</li>
+                    <li>Dates are in local format, rather than ISO 8601. 01/02/2016 could either be the 1st of February (UK) or the 2nd of January (US).</li>
+                    <li>Fees are added in the same record as the payment itself, which is inconvenient for accountancy purposes.</li>
+                    <li>If a PayPal fee is paid on a foreign currency payment, the fee is not also reflected in the currency conversion.</li>
+                    <li>Transactions are not in natural chronological order when a currency conversion takes place.</li>
+                    <li>All currencies are munged into report.</li>
+                    <li>When a currency transaction takes place, the 'description' field is often non-useful, such as "To US Dollar"</li>
+                    <li>Commas in values result in confused parsers.</li>
+                    <li>Spaces at the front of field names breaks RFC 4180.</li>
+                    <li>Commas at the end of each line results in blank fields.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <span class="panel-title">FAQ</span>
+            </div>
+            <div class="panel-body">
+                <p><b>Q: Is this safe/secure?</b><br />
+                    A: Yes. All processing is done in your browser. No data is transmitted.
+                </p>
+                <p><b>Q: How do I download my history CSV file from PayPal?</b><br />
+                    A: Log in to your PayPal account. At the top of the page, choose &quot;Activity&quot;. On the right hand side of the page, choose &quot;Download&quot;. Choose &quot;Custom Date Range&quot;. Choose the dates you wish to download the history for. Under &quot;File types for download&quot;, choose &quot;Comma Delimited - Balance Affecting Payments&quot;. Then, hit &quot;Download History&quot;
+                </p>
+                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top" style="margin:0px;">
+                <input type="hidden" name="cmd" value="_s-xclick">
+                <input type="hidden" name="hosted_button_id" value="JY74BCTN5VXJU">
+                    <p><b>Q: Who created this?</b><br />
+                    <div style="margin-top:-20px;">A: This site was created by Thomas Mettam for CasperTech Ltd. If you like it, you can <input type="image" style="position:relative; top:8px;" src="https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif" border="0" name="submit" alt="PayPal – The safer, easier way to pay online!"></div>
+                    <img alt="" border="0" src="https://www.paypalobjects.com/en_GB/i/scr/pixel.gif" width="1" height="1">
+                </form>
+
+                </p>
+                <div style="margin-top:-20px;">
+                    <p><b>Q: What is this site written in?</b><br />
+                        A: JavaScript with Angular 1.
+                    </p>
+                    <p><b>Q: Can I see the code?</b><br />
+                        A: <a href="/app/app.js">Sure</a>.
+                    </p>
+                    <p><b>Q: Can I use this code on my own site, or in my own project?</b><br />
+                        A: This work is licensed under the <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+                        A: We use data from timezonedb.com. You can <a href="/app/tzData.js">view the data</a> here. It's licensed under the Creative Commons Attribution 3.0 License.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div ng-if="gotFile">
+        <div ng-if="reading">
+            <p>Reading file..</p>
+            <progress max="1000" value="{{fileReadProgressValue}}"></progress>
+        </div>
+        <div ng-if="!reading">
+            <p><button class="btn btn-default" ng-click="goBack()" ng-disabled="processingData">&larr; Back</button></p>
+            <div ng-if="!processing && !processed">
+                <p>
+                    Found <b>{{data.length}}</b> records.
+                </p>
+                <div class="well">Because certain aspects of PayPal's CSV export are ambiguous, please fill in the blanks:</div>
+                <div ng-repeat="tz in timeZones">
+                    <p>What region does timezone <b>{{tz.timezone}}</b> represent?</p>
+                    <p><select class="form-control" ng-model="tz.region">
+                        <option ng-repeat="region in tzData[tz.timezone]">{{region}}</option>
+                    </select></p>
+                </div>
+                <div>
+                    <p>What format are the dates in? (We've tried to auto-detect)</p>
+                    <p><input class="form-control" placeholder="e.g YYYY-MM-DD HH:mm:ss" ng-model="dateFormat"></p>
+                </div>
+                <p><button class="btn btn-default" ng-disabled="processingData" ng-click="process()">Process</button></p>
+            </div>
+            <div ng-if="processed">
+                <h3>All done!</h3>
+                <table class="table">
+                    <tr>
+                        <th>Records processed</th>
+                        <td>{{data.length}}</td>
+                    </tr>
+                    <tr>
+                        <th>Balances corrected</th>
+                        <td>{{fixedBalance}}</td>
+                    </tr>
+                    <tr>
+                        <th>Descriptions corrected</th>
+                        <td>{{fixedDescription}}</td>
+                    </tr>
+                    <tr>
+                        <th>Fee entries added</th>
+                        <td>{{fixedFee}}</td>
+                    </tr>
+                    <tr>
+                        <th>Download</th>
+                        <td>
+                            <span ng-repeat="(key, val) in currencies"><button class="btn btn-default" ng-csv="currencies[key].data" csv-header="getKeys(currencies[key].data[0])">Download {{key}}</button> </span>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
