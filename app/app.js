@@ -1,12 +1,12 @@
 /*
 
-    PayPal History Repair Tool
-    ©2016 CasperTech Ltd (UK)
-    https://github.com/TomMettam/PayPalHistoryRepair
+ PayPal History Repair Tool
+ ©2016 CasperTech Ltd (UK)
+ https://github.com/TomMettam/PayPalHistoryRepair
 
-    This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
+ This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
 
-    https://creativecommons.org/licenses/by-sa/4.0/
+ https://creativecommons.org/licenses/by-sa/4.0/
 
 
  */
@@ -260,6 +260,27 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                 $scope.bytx[data['Transaction ID']] = entry;
             });
 
+            //Obtain the starting balance
+            Object.keys($scope.currencies).forEach(function(currency)
+            {
+                $scope.currencies[currency].data = [];
+                $scope.currencies[currency].first = true;
+                for(var x = 0; x < newArray.length; x++)
+                {
+                    if (newArray[x].currency == currency)
+                    {
+                        var bl = parseFloat(newArray[x].balance);
+                        if ($scope.currencies[currency].first)
+                        {
+                            //Get final balance (balance shown in the very last PayPal entry)
+                            $scope.currencies[currency].first = false;
+                            $scope.currencies[currency].balance = bl;
+                            break;
+                        }
+                    }
+                }
+            });
+
             //Sort entries by date, descending order
             newArray.sort(function(a, b)
             {
@@ -272,8 +293,6 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
 
             Object.keys($scope.currencies).forEach(function(currency)
             {
-                $scope.currencies[currency].data = [];
-                $scope.currencies[currency].first = true;
                 //Now, iterate over each transaction and fix the balance
                 for(var x = 0; x < newArray.length; x++)
                 {
@@ -286,13 +305,6 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
 
                         var bl = newArray[x].balance;
 
-
-                        if ($scope.currencies[currency].first)
-                        {
-                            //Get final balance (balance shown in the very last PayPal entry)
-                            $scope.currencies[currency].first = false;
-                            $scope.currencies[currency].balance = bl;
-                        }
                         if (bl != $scope.currencies[currency].balance)
                         {
                             console.log("Adjusted balance for currency "+currency+" from line " + x + " from " + bl + " to " + $scope.currencies[currency].balance);
