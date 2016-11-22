@@ -47,6 +47,8 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
     {
         $scope.reading = false;
 
+        var originalFile = result;
+
         //First of all, preprocess
         var r = result.indexOf("\r");
         var n = result.indexOf("\n");
@@ -83,10 +85,15 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
         result = Papa.parse(result, {header: true, skipEmptylines: true});
         if (result.errors.length>0)
         {
-            $scope.gotFile = false;
-            $scope.$digest();
-            alert('Sorry, we were unable to parse that file. Are you sure it\'s a valid PayPal CSV?');
-            return;
+            //This may be a new-format CSV, which is correctly formed. Guess they hired a proper developer.
+            result = Papa.parse(result, {header: true, skipEmptylines: true});
+            if (result.errors.length>0)
+            {
+                $scope.gotFile = false;
+                $scope.$digest();
+                alert('Sorry, we were unable to parse that file. Are you sure it\'s a valid PayPal CSV?');
+                return;
+            }
         }
         if (result.data.length<1)
         {
