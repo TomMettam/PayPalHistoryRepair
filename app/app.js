@@ -83,11 +83,11 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
 
         result = newFields.join(',')+body;
         result = Papa.parse(result, {header: true, skipEmptylines: true});
-        if (result.errors.length>0)
+        if (result.errors.length >= result.data.length)
         {
             //This may be a new-format CSV, which is correctly formed. Guess they hired a proper developer.
-            result = Papa.parse(result, {header: true, skipEmptylines: true});
-            if (result.errors.length>0)
+            result = Papa.parse(originalFile, {header: true, skipEmptylines: true});
+            if (result.errors.length>= result.data.length)
             {
                 $scope.gotFile = false;
                 $scope.$digest();
@@ -108,6 +108,11 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
         //Currency, Fee, Gross, Name, Type, Date, Time, Status, Transaction ID, Time Zone, Balance
 
         //Amount -> Gross, Receipt ID -> TransactionID
+        if (testRow['Time Zone']===undefined && testRow['Time zone']!==undefined)
+        {
+            testRow['Time Zone'] = testRow['Time zone'];
+            delete testRow['Time zone'];
+        }
         if (!(testRow['Currency']!==undefined && testRow['Fee']!==undefined && testRow['Gross']!==undefined && testRow['Name']!==undefined && testRow['Type']!==undefined && testRow['Date']!==undefined && testRow['Time']!==undefined && testRow['Status']!==undefined && testRow['Transaction ID']!==undefined && testRow['Time Zone']!==undefined && testRow['Balance']!==undefined))
         {
             if (!(testRow['Date']!==undefined && testRow['Time']!==undefined && testRow['Time Zone']!==undefined && testRow['Name']!==undefined && testRow['Type']!==undefined && testRow['Status']!==undefined && testRow['Currency']!==undefined && testRow['Amount']!==undefined && testRow['Receipt ID']!==undefined && testRow['Balance']!==undefined))
@@ -119,85 +124,100 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
             }
         }
 
+        $scope.fieldCount = Object.keys(testRow).length;
+
         //Okay, now let's gather the information that we need
         $scope.timeZones = {};
         $scope.currencies = {};
         result.data.forEach(function(data)
         {
-            //Fudge for personal PayPal accounts which don't have all the fields we want
-            if (data['Amount']!==undefined && data['Gross']===undefined)
+            //New format paypal CSVs now have a field which doesn't correspond in any way with the fucking balance.
+            if (Object.keys(data).length == $scope.fieldCount && data['Type']!=='Shopping Cart Item')
             {
-                data['Gross'] = data['Amount'];
-                delete data['Amount'];
-            }
-            if (data['Receipt ID']!==undefined && data['Transaction ID']===undefined)
-            {
-                data['Transaction ID'] = data['Receipt ID'];
-                delete data['Receipt ID'];
-            }
-            if (data['Fee']===undefined)
-            {
-                data['Fee'] = "0.00";
-            }
-            var tz = data['Time Zone'];
-            if (!$scope.timeZones[tz])
-            {
-                $scope.timeZones[tz] = {timezone: tz};
-            }
-            var currency = data['Currency'];
-            if (!$scope.currencies[currency])
-            {
-                $scope.currencies[currency] = {};
-            }
-
-            var separator = '-';
-            if (data['Date'].indexOf(' ')!==-1)
-            {
-                separator = " ";
-            }
-            if (data['Date'].indexOf('.')!==-1)
-            {
-                separator = ".";
-            }
-            if (data['Date'].indexOf('/')!==-1)
-            {
-                separator = "/";
-            }
-            if (data['Date'].indexOf('\\')!==-1)
-            {
-                separator = "\\";
-            }
-            if (data['Date'].indexOf('-')!==-1)
-            {
-                separator = "-";
-            }
-            function escapeRegExp(str) {
-                return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-            }
-            var re = new RegExp(escapeRegExp(separator),"g");
-            var d = data['Date'].replace(re, '-').split("-");
-            if (d.length>2)
-            {
-                if (parseInt(d[0]).length==4)
+                //Fudge for new format CSV which just has a lower case z in the `time zone` field. Thanks paypal.
+                if (data['Time Zone'] === undefined && data['Time zone'] !== undefined)
                 {
-                    $scope.dateFormat = 'YYYY'+separator+'MM'+separator+'DD';
+                    data['Time Zone'] = data['Time zone'];
+                    delete data['Time zone'];
                 }
-                else
+
+                //Fudge for personal PayPal accounts which don't have all the fields we want
+                if (data['Amount'] !== undefined && data['Gross'] === undefined)
                 {
-                    if (parseInt(d[0])>12)
+                    data['Gross'] = data['Amount'];
+                    delete data['Amount'];
+                }
+                if (data['Receipt ID'] !== undefined && data['Transaction ID'] === undefined)
+                {
+                    data['Transaction ID'] = data['Receipt ID'];
+                    delete data['Receipt ID'];
+                }
+                if (data['Fee'] === undefined)
+                {
+                    data['Fee'] = "0.00";
+                }
+                var tz = data['Time Zone'];
+                if (!$scope.timeZones[tz])
+                {
+                    $scope.timeZones[tz] = {timezone: tz};
+                }
+                var currency = data['Currency'];
+                if (!$scope.currencies[currency])
+                {
+                    $scope.currencies[currency] = {};
+                }
+
+                var separator = '-';
+                if (data['Date'].indexOf(' ') !== -1)
+                {
+                    separator = " ";
+                }
+                if (data['Date'].indexOf('.') !== -1)
+                {
+                    separator = ".";
+                }
+                if (data['Date'].indexOf('/') !== -1)
+                {
+                    separator = "/";
+                }
+                if (data['Date'].indexOf('\\') !== -1)
+                {
+                    separator = "\\";
+                }
+                if (data['Date'].indexOf('-') !== -1)
+                {
+                    separator = "-";
+                }
+                function escapeRegExp(str)
+                {
+                    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+                }
+
+                var re = new RegExp(escapeRegExp(separator), "g");
+                var d  = data['Date'].replace(re, '-').split("-");
+                if (d.length > 2)
+                {
+                    if (parseInt(d[0]).length == 4)
                     {
-                        $scope.dateFormat = 'DD'+separator+'MM'+separator+'YY';
-                        if (d[2].length>2)
-                        {
-                            $scope.dateFormat+='YY';
-                        }
+                        $scope.dateFormat = 'YYYY' + separator + 'MM' + separator + 'DD';
                     }
-                    if (parseInt(d[1])>12)
+                    else
                     {
-                        $scope.dateFormat = 'MM'+separator+'DD'+separator+'YY';
-                        if (d[2].length>2)
+                        if (parseInt(d[0]) > 12)
                         {
-                            $scope.dateFormat+='YY';
+                            $scope.dateFormat = 'DD' + separator + 'MM' + separator + 'YY';
+                            if (d[2].length > 2)
+                            {
+                                $scope.dateFormat += 'YY';
+                            }
+                        }
+                        if (parseInt(d[1]) > 12)
+                        {
+                            $scope.dateFormat = 'MM' + separator + 'DD' + separator + 'YY';
+                            if (d[2].length > 2)
+                            {
+                                $scope.dateFormat += 'YY';
+                            }
                         }
                     }
                 }
@@ -242,29 +262,32 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
             var newArray = [];
             $scope.data.forEach(function(data)
             {
-                var timeZone = data['Time Zone'];
-                if ($scope.timeZones[timeZone])
+                if (Object.keys(data).length == $scope.fieldCount && data['Type'] !== 'Shopping Cart Item')
                 {
-                    timeZone = $scope.timeZones[timeZone].region;
-                }
+                    var timeZone = data['Time Zone'];
+                    if ($scope.timeZones[timeZone])
+                    {
+                        timeZone = $scope.timeZones[timeZone].region;
+                    }
 
-                var dt = moment.tz(data['Date']+" "+data['Time'], $scope.dateFormat+" HH:mm:ss", timeZone);
-                var entry = {
-                    dt: dt,
-                    currency: data['Currency'],
-                    status: data['Status'],
-                    description: data['Name']+ ' - '+data['Type'] + ((data['Transaction ID'].length>0)?' (' + data['Transaction ID'] + ')':''),
-                    amount: data['Gross'],
-                    fee: data['Fee'],
-                    balance: data['Balance'],
-                    type: data['Type'],
-                    name: data['Name'],
-                    ref: data['Reference Txn ID'],
-                    txid: data['Transaction ID'],
-                    timezone: timeZone
-                };
-                newArray.push(entry);
-                $scope.bytx[data['Transaction ID']] = entry;
+                    var dt    = moment.tz(data['Date'] + " " + data['Time'], $scope.dateFormat + " HH:mm:ss", timeZone);
+                    var entry = {
+                        dt:          dt,
+                        currency:    data['Currency'],
+                        status:      data['Status'],
+                        description: data['Name'] + ' - ' + data['Type'] + ((data['Transaction ID'].length > 0) ? ' (' + data['Transaction ID'] + ')' : ''),
+                        amount:      data['Gross'],
+                        fee:         data['Fee'],
+                        balance:     data['Balance'],
+                        type:        data['Type'],
+                        name:        data['Name'],
+                        ref:         data['Reference Txn ID'],
+                        txid:        data['Transaction ID'],
+                        timezone:    timeZone
+                    };
+                    newArray.push(entry);
+                    $scope.bytx[data['Transaction ID']] = entry;
+                }
             });
 
             //Obtain the starting balance
@@ -282,6 +305,13 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                             //Get final balance (balance shown in the very last PayPal entry)
                             $scope.currencies[currency].first = false;
                             $scope.currencies[currency].balance = bl;
+
+                            //Subtract the net amount from this transaction from the balance
+                            if (newArray[x].fee=="")
+                            {
+                                newArray[x].fee = "0.00";
+                            }
+                            $scope.currencies[currency].balance -= (parseFloat(newArray[x].amount) + parseFloat(newArray[x].fee));
                             break;
                         }
                     }
@@ -305,10 +335,19 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                 {
                     if (newArray[x].currency == currency)
                     {
+                        if (newArray[x].fee=="")
+                        {
+                            newArray[x].fee="0.00";
+                        }
+                        var g = newArray[x].fee.replace(/,/g,'');
                         if (typeof newArray[x].amount=='string') newArray[x].amount = parseFloat(newArray[x].amount.replace(/,/g,''));
                         if (typeof newArray[x].balance=='string') newArray[x].balance = parseFloat(newArray[x].balance.replace(/,/g,''));
                         if (typeof newArray[x].fee=='string') newArray[x].fee = parseFloat(newArray[x].fee.replace(/,/g,''));
 
+                        if (isNaN(newArray[x].fee))
+                        {
+                            alert('NaN. Original: ');
+                        }
 
                         var bl = newArray[x].balance;
 
