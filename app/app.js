@@ -360,7 +360,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                         $scope.currencies[currency].balance = $scope.currencies[currency].balance - (newArray[x]['amount'] + newArray[x]['fee']);
 
                         //Check for unhelpful descriptions
-                        if (newArray[x].type=='Currency Conversion' && newArray[x].name.substr(0,3)=='To ')
+                        if ((newArray[x].type=='Currency Conversion' && newArray[x].name.substr(0,3)=='To ') || (newArray[x].type=='General Currency Conversion' && newArray[x].name==''))
                         {
                             //Found a currency conversion with a potentially unhelpful description
                             var ref = newArray[x].ref;
