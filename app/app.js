@@ -132,7 +132,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
         result.data.forEach(function(data)
         {
             //New format paypal CSVs now have a field which doesn't correspond in any way with the fucking balance.
-            if (Object.keys(data).length == $scope.fieldCount && data['Type']!=='Shopping Cart Item')
+            if (Object.keys(data).length === $scope.fieldCount && data['Type']!=='Shopping Cart Item')
             {
                 //Fudge for new format CSV which just has a lower case z in the `time zone` field. Thanks paypal.
                 if (data['Time Zone'] === undefined && data['Time zone'] !== undefined)
@@ -197,7 +197,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                 var d  = data['Date'].replace(re, '-').split("-");
                 if (d.length > 2)
                 {
-                    if (parseInt(d[0]).length == 4)
+                    if (parseInt(d[0]).length === 4)
                     {
                         $scope.dateFormat = 'YYYY' + separator + 'MM' + separator + 'DD';
                     }
@@ -262,7 +262,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
             var newArray = [];
             $scope.data.forEach(function(data)
             {
-                if (Object.keys(data).length == $scope.fieldCount && data['Type'] !== 'Shopping Cart Item')
+                if (Object.keys(data).length === $scope.fieldCount && data['Type'] !== 'Shopping Cart Item' && data['Balance Impact'] !== 'Memo')
                 {
                     var timeZone = data['Time Zone'];
                     if ($scope.timeZones[timeZone])
@@ -297,7 +297,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                 $scope.currencies[currency].first = true;
                 for(var x = 0; x < newArray.length; x++)
                 {
-                    if (newArray[x].currency == currency)
+                    if (newArray[x].currency === currency)
                     {
                         var bl = parseFloat(newArray[x].balance);
                         if ($scope.currencies[currency].first)
@@ -307,7 +307,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                             $scope.currencies[currency].balance = bl;
 
                             //Subtract the net amount from this transaction from the balance
-                            if (newArray[x].fee=="")
+                            if (newArray[x].fee === "")
                             {
                                 newArray[x].fee = "0.00";
                             }
@@ -333,16 +333,15 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                 //Now, iterate over each transaction and fix the balance
                 for(var x = 0; x < newArray.length; x++)
                 {
-                    if (newArray[x].currency == currency)
+                    if (newArray[x].currency === currency)
                     {
-                        if (newArray[x].fee=="")
+                        if (newArray[x].fee === "")
                         {
-                            newArray[x].fee="0.00";
+                            newArray[x].fee = "0.00";
                         }
-                        var g = newArray[x].fee.replace(/,/g,'');
-                        if (typeof newArray[x].amount=='string') newArray[x].amount = parseFloat(newArray[x].amount.replace(/,/g,''));
-                        if (typeof newArray[x].balance=='string') newArray[x].balance = parseFloat(newArray[x].balance.replace(/,/g,''));
-                        if (typeof newArray[x].fee=='string') newArray[x].fee = parseFloat(newArray[x].fee.replace(/,/g,''));
+                        if (typeof newArray[x].amount === 'string') newArray[x].amount = parseFloat(newArray[x].amount.replace(/,/g,''));
+                        if (typeof newArray[x].balance === 'string') newArray[x].balance = parseFloat(newArray[x].balance.replace(/,/g,''));
+                        if (typeof newArray[x].fee === 'string') newArray[x].fee = parseFloat(newArray[x].fee.replace(/,/g,''));
 
                         if (isNaN(newArray[x].fee))
                         {
@@ -351,7 +350,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
 
                         var bl = newArray[x].balance;
 
-                        if (bl != $scope.currencies[currency].balance)
+                        if (bl !== $scope.currencies[currency].balance)
                         {
                             console.log("Adjusted balance for currency "+currency+" from line " + x + " from " + bl + " to " + $scope.currencies[currency].balance);
                             $scope.fixedBalance++;
@@ -360,7 +359,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                         $scope.currencies[currency].balance = $scope.currencies[currency].balance - (newArray[x]['amount'] + newArray[x]['fee']);
 
                         //Check for unhelpful descriptions
-                        if ((newArray[x].type=='Currency Conversion' && newArray[x].name.substr(0,3)=='To ') || (newArray[x].type=='General Currency Conversion' && newArray[x].name==''))
+                        if ((newArray[x].type === 'Currency Conversion' && newArray[x].name.substr(0,3) === 'To ') || (newArray[x].type === 'General Currency Conversion' && newArray[x].name === ''))
                         {
                             //Found a currency conversion with a potentially unhelpful description
                             var ref = newArray[x].ref;
@@ -369,8 +368,8 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                                 //Search all records for this transaction ID
                                 if ($scope.bytx[ref] && newArray[x].currency !== $scope.bytx[ref].currency)
                                 {
-                                    if (typeof $scope.bytx[ref].fee == 'string') $scope.bytx[ref].fee = parseFloat($scope.bytx[ref].fee.replace(/,/g, ''));
-                                    if (typeof $scope.bytx[ref].amount == 'string') $scope.bytx[ref].amount = parseFloat($scope.bytx[ref].amount.replace(/,/g, ''));
+                                    if (typeof $scope.bytx[ref].fee === 'string') $scope.bytx[ref].fee = parseFloat($scope.bytx[ref].fee.replace(/,/g, ''));
+                                    if (typeof $scope.bytx[ref].amount === 'string') $scope.bytx[ref].amount = parseFloat($scope.bytx[ref].amount.replace(/,/g, ''));
                                     newArray[x].description = $scope.bytx[ref].amount.toFixed(2) + " " + $scope.bytx[ref].currency + " - " + $scope.bytx[ref].description;
                                     $scope.fixedDescription++;
 
@@ -405,10 +404,10 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
                                         }
                                     }
                                 }
-                                if (matches==1)
+                                if (matches === 1)
                                 {
-                                    if (typeof newArray[found].fee == 'string') newArray[found].fee = parseFloat(newArray[found].fee.replace(/,/g, ''));
-                                    if (typeof newArray[found].amount == 'string') newArray[found].amount = parseFloat(newArray[found].amount.replace(/,/g, ''));
+                                    if (typeof newArray[found].fee === 'string') newArray[found].fee = parseFloat(newArray[found].fee.replace(/,/g, ''));
+                                    if (typeof newArray[found].amount === 'string') newArray[found].amount = parseFloat(newArray[found].amount.replace(/,/g, ''));
                                     newArray[x].description = newArray[found].amount.toFixed(2) + " " + newArray[found].currency + " - " + newArray[found].description;
                                     $scope.fixedDescription++;
 
@@ -432,7 +431,7 @@ angular.module('craypal').controller('main', function($scope, Papa, $timeout)
 
                         //Check for fee payment
                         var fee = entry.fee;
-                        if (fee!=0)
+                        if (fee !== 0)
                         {
                             var feeEntry = {};
                             Object.keys(entry).forEach(function(k)
